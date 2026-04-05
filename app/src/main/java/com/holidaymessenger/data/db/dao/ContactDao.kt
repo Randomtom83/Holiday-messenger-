@@ -18,7 +18,7 @@ interface ContactDao {
     @Query("SELECT * FROM contacts WHERE id = :id")
     suspend fun getContactById(id: Long): Contact?
 
-    @Query("SELECT * FROM contacts WHERE effectiveBirthday IS NOT NULL OR birthday IS NOT NULL OR birthdayOverride IS NOT NULL")
+    @Query("SELECT * FROM contacts WHERE birthday IS NOT NULL OR birthdayOverride IS NOT NULL")
     fun getContactsWithBirthdays(): Flow<List<Contact>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
