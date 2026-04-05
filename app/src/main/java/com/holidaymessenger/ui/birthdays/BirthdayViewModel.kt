@@ -1,0 +1,108 @@
+package com.holidaymessenger.ui.birthdays
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.holidaymessenger.data.db.entity.*
+import com.holidaymessenger.data.repository.ContactRepository
+import com.holidaymessenger.data.repository.MessageRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class BirthdayContact(
+    val contact: Contact,
+    val scheduledMessage: ScheduledMessage?,
+    val isEnabled: Boolean
+)
+
+data class BirthdayUiState(
+    val birthdayContacts: List<BirthdayContact> = emptyList(),
+    val editingContact: Contact? = null,
+    val showBirthdayDialog: Boolean = false,
+    val birthdayInput: String = ""
+)
+
+@HiltViewModel
+class BirthdayViewModel @Inject constructor(
+    private val contactRepository: ContactRepository,
+    private val messageRepository: MessageRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(BirthdayUiState())
+    val uiState: StateFlow<BirthdayUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(
+                contactRepository.getContactsWithBirthdays(),
+                messageRepository.getScheduledMessagesByType(MessageType.BIRTHDAY)
+            ) { contacts, scheduled ->
+                contacts.map { contact ->
+                    val msg = scheduled.find { it.contactId == contact.id }
+                    BirthdayContact(
+                        contact = contact,
+                        scheduledMessage = msg,
+                        isEnabled = msg?.enabled ?: false
+                    )
+                }
+            }.collect { birthdayContacts ->
+                _uiState.update { it.copy(birthdayContacts = birthdayContacts) }
+            }
+        }
+    }
+
+    fun toggleBirthdayMessage(birthdayContact: BirthdayContact) {
+        viewModelScope.launch {
+            val msg = birthdayContact.scheduledMessage
+            if (msg != null) {
+                messageRepository.setEnabled(msg.id, !msg.enabled)
+            } else {
+                // Create a new birthday scheduled message
+                val template = messageRepository.getFirstTemplateByCategory(Category.BIRTHDAY)
+                val templateId = template?.id ?: messageRepository.insertTemplate(
+                    MessageTemplate(
+                        category = Category.BIRTHDAY,
+                        text = "Happy Birthday, {name}! Hope you have an amazing day!"
+                    )
+                )
+                messageRepository.insertScheduledMessage(
+                    ScheduledMessage(
+                        contactId = birthdayContact.contact.id,
+                        templateId = templateId,
+                        type = MessageType.BIRTHDAY,
+                        channel = birthdayContact.contact.preferredChannel,
+                        frequency = Frequency.YEARLY,
+                        windowStartMinutes = 540, // 9:00 AM
+                        windowEndMinutes = 660,    // 11:00 AM
+                        enabled = true
+                    )
+                )
+            }
+        }
+    }
+
+    fun editBirthday(contact: Contact) {
+        _uiState.update {
+            it.copy(
+                editingContact = contact,
+                showBirthdayDialog = true,
+                birthdayInput = contact.effectiveBirthday ?: ""
+            )
+        }
+    }
+
+    fun saveBirthday(monthDay: String) {
+        val contact = _uiState.value.editingContact ?: return
+        viewModelScope.launch {
+            contactRepository.updateContact(
+                contact.copy(birthdayOverride = monthDay.ifBlank { null })
+            )
+            _uiState.update { it.copy(showBirthdayDialog = false) }
+        }
+    }
+
+    fun dismissBirthdayDialog() {
+        _uiState.update { it.copy(showBirthdayDialog = false) }
+    }
+}
