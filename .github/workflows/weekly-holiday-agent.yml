@@ -98,7 +98,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          BRANCH="weekly-holiday-update/${DATE}"
+          RUN="${{ github.run_number }}"
+          BRANCH="weekly-holiday-update/${DATE}-run${RUN}"
 
           # Check if there are any changes to commit
           if [ -z "$(git status --porcelain)" ]; then
