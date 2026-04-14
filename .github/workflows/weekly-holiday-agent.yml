@@ -9,7 +9,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  id-token: write
 
 jobs:
   holiday-discovery:
@@ -19,88 +18,108 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
 
       - name: Run Claude Code holiday agent
-        uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          direct_prompt: |
-            You are the weekly Holiday Messenger maintenance agent. Your job is to discover new holidays and compose fresh message templates.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude --print --dangerously-skip-permissions <<'PROMPT'
+          You are the weekly Holiday Messenger maintenance agent. Your job is to discover new holidays and compose fresh message templates.
 
-            ## Current Holidays (18 total)
-            Read `app/src/main/java/com/holidaymessenger/util/HolidayCalendar.kt` and
-            `app/src/main/java/com/holidaymessenger/data/repository/HolidayRepository.kt`
-            to confirm the current holiday list:
-            1. New Year's Day (01-01)
-            2. Lunar New Year (variable)
-            3. Valentine's Day (02-14)
-            4. Easter (variable)
-            5. Passover (variable)
-            6. Mother's Day (variable)
-            7. Father's Day (variable)
-            8. Juneteenth (06-19)
-            9. Eid al-Fitr (variable)
-            10. Independence Day (07-04)
-            11. Eid al-Adha (variable)
-            12. Rosh Hashanah (variable)
-            13. Halloween (10-31)
-            14. Election Day (variable)
-            15. Diwali (variable)
-            16. Thanksgiving (variable)
-            17. Hanukkah (variable)
-            18. Christmas (12-25)
+          ## Current Holidays (18 total)
+          Read `app/src/main/java/com/holidaymessenger/util/HolidayCalendar.kt` and
+          `app/src/main/java/com/holidaymessenger/data/repository/HolidayRepository.kt`
+          to confirm the current holiday list:
+          1. New Year's Day (01-01)
+          2. Lunar New Year (variable)
+          3. Valentine's Day (02-14)
+          4. Easter (variable)
+          5. Passover (variable)
+          6. Mother's Day (variable)
+          7. Father's Day (variable)
+          8. Juneteenth (06-19)
+          9. Eid al-Fitr (variable)
+          10. Independence Day (07-04)
+          11. Eid al-Adha (variable)
+          12. Rosh Hashanah (variable)
+          13. Halloween (10-31)
+          14. Election Day (variable)
+          15. Diwali (variable)
+          16. Thanksgiving (variable)
+          17. Hanukkah (variable)
+          18. Christmas (12-25)
 
-            ## Step 1 — Discover New Holidays
+          ## Step 1 — Discover New Holidays
 
-            Search for notable US holidays, cultural observances, and awareness days in the
-            next 90 days that are NOT already in the list above. Consider:
-            - Federal holidays: Presidents' Day, MLK Day, Veterans Day, Memorial Day, Labor Day
-            - Cultural: St. Patrick's Day, Cinco de Mayo, Indigenous Peoples' Day, Kwanzaa
-            - Awareness: International Women's Day, Earth Day, World Mental Health Day
-            - Any other trending or notable observances
+          Search for notable US holidays, cultural observances, and awareness days in the
+          next 90 days that are NOT already in the list above. Consider:
+          - Federal holidays: Presidents' Day, MLK Day, Veterans Day, Memorial Day, Labor Day
+          - Cultural: St. Patrick's Day, Cinco de Mayo, Indigenous Peoples' Day, Kwanzaa
+          - Awareness: International Women's Day, Earth Day, World Mental Health Day
+          - Any other trending or notable observances
 
-            For each new holiday found, provide:
-            - Name and date (or date rule if variable)
-            - Whether it's fixed or variable
-            - Suggested monthDay format (MM-dd) if fixed
-            - 3 message template options using the {name} placeholder
+          For each new holiday found, provide:
+          - Name and date (or date rule if variable)
+          - Whether it's fixed or variable
+          - Suggested monthDay format (MM-dd) if fixed
+          - 3 message template options using the {name} placeholder
 
-            ## Step 2 — Compose Fresh Message Templates
+          ## Step 2 — Compose Fresh Message Templates
 
-            For each of the existing 18 holidays, write 3 fresh, varied message templates
-            using the {name} placeholder. Messages should:
-            - Feel warm, personal, and diverse in tone (casual, heartfelt, fun)
-            - Be different from the current defaults in the codebase
-            - Be appropriate for sending to friends, family, and acquaintances
-            - Be concise (1-2 sentences max)
+          For each of the existing 18 holidays, write 3 fresh, varied message templates
+          using the {name} placeholder. Messages should:
+          - Feel warm, personal, and diverse in tone (casual, heartfelt, fun)
+          - Be different from the current defaults in the codebase
+          - Be appropriate for sending to friends, family, and acquaintances
+          - Be concise (1-2 sentences max)
 
-            ## Step 3 — Save Results
+          ## Step 3 — Save Results
 
-            1. Create directory `holiday-suggestions/` if it doesn't exist
-            2. Write all findings to `holiday-suggestions/<today's date YYYY-MM-DD>-weekly-update.md`
-            3. The markdown file should have these sections:
-               - **New Holiday Discoveries** — holidays not in the current 18, with dates and messages
-               - **Fresh Message Templates** — 3 new options per existing holiday
-               - **Recommendations** — top 5 new holidays most worth adding and why
-            4. Commit this file to a new branch `weekly-holiday-update/<today's date YYYY-MM-DD>`
-            5. Push the branch
-          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
-          model: "claude-sonnet-4-6"
+          1. Create directory `holiday-suggestions/` if it doesn't exist
+          2. Write all findings to a file named with today's date: `holiday-suggestions/$(date +%Y-%m-%d)-weekly-update.md`
+          3. The markdown file should have these sections:
+             - **New Holiday Discoveries** — holidays not in the current 18, with dates and messages
+             - **Fresh Message Templates** — 3 new options per existing holiday
+             - **Recommendations** — top 5 new holidays most worth adding and why
+          PROMPT
 
-      - name: Create Pull Request
+      - name: Commit, push, and create PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DATE=$(date +%Y-%m-%d)
           BRANCH="weekly-holiday-update/${DATE}"
 
-          # Check if branch was created by Claude
-          if git rev-parse --verify "origin/${BRANCH}" 2>/dev/null; then
-            git checkout "${BRANCH}"
-            gh pr create \
-              --title "Weekly Holiday Update — ${DATE}" \
-              --body "$(cat <<'EOF'
+          # Check if there are any changes to commit
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes detected — nothing to commit"
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "Holiday Agent"
+          git config user.email "holiday-agent@users.noreply.github.com"
+
+          # Create branch, commit, push
+          git checkout -b "${BRANCH}"
+          git add holiday-suggestions/
+          git commit -m "Weekly holiday discovery update — ${DATE}"
+          git push origin "${BRANCH}"
+
+          # Create PR
+          gh pr create \
+            --title "Weekly Holiday Update — ${DATE}" \
+            --body "$(cat <<'EOF'
           ## Weekly Holiday Discovery Report
 
           This automated PR contains:
@@ -113,7 +132,4 @@ jobs:
           Generated by the Weekly Holiday Agent
           EOF
           )" \
-              --base main || echo "PR may already exist or branch not pushed"
-          else
-            echo "No update branch found — Claude may have committed directly or found no updates"
-          fi
+            --base main
