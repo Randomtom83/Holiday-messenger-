@@ -6,8 +6,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -19,23 +21,25 @@ import com.holidaymessenger.ui.contacts.ContactPickerScreen
 import com.holidaymessenger.ui.history.HistoryScreen
 import com.holidaymessenger.ui.holidays.HolidayScreen
 import com.holidaymessenger.ui.home.HomeScreen
+import com.holidaymessenger.ui.onboarding.OnboardingScreen
 import com.holidaymessenger.ui.recurring.RecurringEditScreen
 import com.holidaymessenger.ui.recurring.RecurringScreen
 import com.holidaymessenger.ui.settings.SettingsScreen
+import com.holidaymessenger.util.Prefs
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Home : Screen("home", "Home", Icons.Filled.Home)
     data object Holidays : Screen("holidays", "Holidays", Icons.Filled.Celebration)
+    data object MasterList : Screen("master_list", "Squad", Icons.Filled.Group)
     data object Birthdays : Screen("birthdays", "Birthdays", Icons.Filled.Cake)
-    data object Recurring : Screen("recurring", "Recurring", Icons.Filled.Repeat)
     data object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
 val bottomNavItems = listOf(
     Screen.Home,
     Screen.Holidays,
+    Screen.MasterList,
     Screen.Birthdays,
-    Screen.Recurring,
     Screen.Settings
 )
 
@@ -43,37 +47,52 @@ val bottomNavItems = listOf(
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val onboardingComplete = remember { Prefs.isOnboardingComplete(context) }
+    val startRoute = if (onboardingComplete) Screen.Home.route else "onboarding"
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute != "onboarding"
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+            if (showBottomBar) {
+                NavigationBar {
+                    val currentDestination = navBackStackEntry?.destination
 
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
-                        label = { Text(screen.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                    bottomNavItems.forEach { screen ->
+                        NavigationBarItem(
+                            icon = { Icon(screen.icon, contentDescription = screen.title) },
+                            label = { Text(screen.title) },
+                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            onClick = {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = startRoute,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable("onboarding") {
+                OnboardingScreen(onFinish = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo("onboarding") { inclusive = true }
+                    }
+                })
+            }
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToHistory = { navController.navigate("history") }
@@ -86,14 +105,14 @@ fun AppNavGraph() {
                     }
                 )
             }
+            composable(Screen.MasterList.route) {
+                ContactPickerScreen(
+                    holidayId = 0,
+                    onBack = { navController.navigate(Screen.Home.route) }
+                )
+            }
             composable(Screen.Birthdays.route) {
                 BirthdayScreen()
-            }
-            composable(Screen.Recurring.route) {
-                RecurringScreen(
-                    onAddNew = { navController.navigate("recurring/edit") },
-                    onEdit = { id -> navController.navigate("recurring/edit/$id") }
-                )
             }
             composable(Screen.Settings.route) {
                 SettingsScreen()
