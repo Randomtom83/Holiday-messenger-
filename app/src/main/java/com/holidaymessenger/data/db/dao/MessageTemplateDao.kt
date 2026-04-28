@@ -33,4 +33,6 @@ interface MessageTemplateDao {
 
     @Delete
     suspend fun deleteTemplate(template: MessageTemplate)
+    @Query("DELETE FROM message_templates")
+    suspend fun deleteAllTemplates()
 }

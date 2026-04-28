@@ -22,7 +22,9 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "holiday_messenger.db"
-        ).build()
+        )
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+            .build()
     }
 
     @Provides

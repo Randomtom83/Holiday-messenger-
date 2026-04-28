@@ -11,7 +11,7 @@ interface HolidayDao {
     fun getAllHolidays(): Flow<List<Holiday>>
 
     @Query("SELECT * FROM holidays WHERE enabled = 1")
-    suspend fun getEnabledHolidays(): List<Holiday>
+    suspend fun getEnabledHolidaysList(): List<Holiday>
 
     @Query("SELECT * FROM holidays WHERE id = :id")
     suspend fun getHolidayById(id: Long): Holiday?
@@ -34,9 +34,24 @@ interface HolidayDao {
     @Delete
     suspend fun deleteHolidayContactCrossRef(crossRef: HolidayContactCrossRef)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHolidayContactCrossRefs(crossRefs: List<HolidayContactCrossRef>)
+
+    @Query("DELETE FROM holiday_contact_cross_ref WHERE holidayId = :holidayId")
+    suspend fun deleteAllContactsForHoliday(holidayId: Long)
+
     @Query("SELECT contactId FROM holiday_contact_cross_ref WHERE holidayId = :holidayId")
     fun getContactIdsForHoliday(holidayId: Long): Flow<List<Long>>
 
+    @Query("SELECT * FROM holidays")
+    suspend fun getAllHolidaysList(): List<Holiday>
+
+    @Query("SELECT contactId FROM holiday_contact_cross_ref WHERE holidayId = :holidayId")
+    suspend fun getContactIdsList(holidayId: Long): List<Long>
+
     @Query("SELECT COUNT(*) FROM holidays")
     suspend fun getHolidayCount(): Int
+
+    @Query("DELETE FROM holidays")
+    suspend fun deleteAllHolidays()
 }
