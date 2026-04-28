@@ -20,7 +20,9 @@ data class BirthdayUiState(
     val birthdayContacts: List<BirthdayContact> = emptyList(),
     val editingContact: Contact? = null,
     val showBirthdayDialog: Boolean = false,
-    val birthdayInput: String = ""
+    val birthdayInput: String = "",
+    val showTemplateDialog: Boolean = false,
+    val templateInput: String = ""
 )
 
 @HiltViewModel
@@ -59,13 +61,16 @@ class BirthdayViewModel @Inject constructor(
                 messageRepository.setEnabled(msg.id, !msg.enabled)
             } else {
                 // Create a new birthday scheduled message
-                val template = messageRepository.getFirstTemplateByCategory(Category.BIRTHDAY)
-                val templateId = template?.id ?: messageRepository.insertTemplate(
-                    MessageTemplate(
-                        category = Category.BIRTHDAY,
-                        text = "Happy Birthday, {name}! Hope you have an amazing day!"
+                val templateId = birthdayContact.contact.birthdayTemplateId ?: run {
+                    val template = messageRepository.getFirstTemplateByCategory(Category.BIRTHDAY)
+                    template?.id ?: messageRepository.insertTemplate(
+                        MessageTemplate(
+                            category = Category.BIRTHDAY,
+                            text = "Happy Birthday, {name}! Hope you have an amazing day!"
+                        )
                     )
-                )
+                }
+
                 messageRepository.insertScheduledMessage(
                     ScheduledMessage(
                         contactId = birthdayContact.contact.id,
@@ -102,7 +107,59 @@ class BirthdayViewModel @Inject constructor(
         }
     }
 
+    fun editTemplate(contact: Contact) {
+        viewModelScope.launch {
+            val templateId = contact.birthdayTemplateId
+            val templateText = if (templateId != null) {
+                messageRepository.getTemplateById(templateId)?.text ?: ""
+            } else {
+                messageRepository.getFirstTemplateByCategory(Category.BIRTHDAY)?.text ?: ""
+            }
+
+            _uiState.update {
+                it.copy(
+                    editingContact = contact,
+                    showTemplateDialog = true,
+                    templateInput = templateText
+                )
+            }
+        }
+    }
+
+    fun saveTemplate(text: String) {
+        val contact = _uiState.value.editingContact ?: return
+        viewModelScope.launch {
+            val newTemplateId = messageRepository.insertTemplate(
+                MessageTemplate(
+                    category = Category.BIRTHDAY,
+                    text = text
+                )
+            )
+
+            // Update contact to use this specific template
+            contactRepository.updateContact(
+                contact.copy(birthdayTemplateId = newTemplateId)
+            )
+
+            // Update any existing scheduled birthday message for this contact
+            val birthdayMessages = messageRepository.getScheduledMessagesByType(MessageType.BIRTHDAY).first()
+            val existingMsg = birthdayMessages.find { it.contactId == contact.id }
+            
+            if (existingMsg != null) {
+                messageRepository.updateScheduledMessage(
+                    existingMsg.copy(templateId = newTemplateId)
+                )
+            }
+
+            _uiState.update { it.copy(showTemplateDialog = false) }
+        }
+    }
+
     fun dismissBirthdayDialog() {
         _uiState.update { it.copy(showBirthdayDialog = false) }
+    }
+
+    fun dismissTemplateDialog() {
+        _uiState.update { it.copy(showTemplateDialog = false) }
     }
 }
