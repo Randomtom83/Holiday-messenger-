@@ -11,6 +11,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.holidaymessenger.HolidayMessengerApp
 import com.holidaymessenger.R
+import android.app.PendingIntent
+import android.content.Intent
+import com.holidaymessenger.MainActivity
 import com.holidaymessenger.data.db.entity.Channel
 import com.holidaymessenger.data.db.entity.MessageLog
 import com.holidaymessenger.data.db.entity.MessageStatus
@@ -48,33 +51,68 @@ class MessageSenderWorker @AssistedInject constructor(
 
         val resolvedMessage = messageRepository.resolveTemplate(template.text, contact.name)
 
-        val success = when (scheduledMessage.channel) {
-            Channel.SMS -> smsSender.send(contact.phoneNumber, resolvedMessage)
-            Channel.WHATSAPP -> whatsAppSender.send(contact.phoneNumber, resolvedMessage)
+        return if (scheduledMessage.channel == Channel.WHATSAPP) {
+            showWhatsAppNotification(contact.name, contact.phoneNumber, resolvedMessage)
+            // Mark as sent because it's now in the user's hands
+            logAndUpdateStatus(scheduledMessageId, contact.id, contact.name, resolvedMessage, Channel.WHATSAPP, MessageStatus.SENT, true)
+            Result.success()
+        } else {
+            val success = smsSender.send(contact.phoneNumber, resolvedMessage)
+            val status = if (success) MessageStatus.SENT else MessageStatus.FAILED
+
+            logAndUpdateStatus(scheduledMessageId, contact.id, contact.name, resolvedMessage, Channel.SMS, status, success)
+            sendNotification(contact.name, status)
+
+            if (success) Result.success() else Result.retry()
         }
+    }
 
-        val status = if (success) MessageStatus.SENT else MessageStatus.FAILED
-
-        // Log the message
+    private suspend fun logAndUpdateStatus(
+        scheduledMessageId: Long,
+        contactId: Long,
+        contactName: String,
+        message: String,
+        channel: Channel,
+        status: MessageStatus,
+        updateSentDate: Boolean
+    ) {
         messageRepository.logMessage(
             MessageLog(
-                contactId = contact.id,
-                contactName = contact.name,
-                message = resolvedMessage,
-                channel = scheduledMessage.channel,
+                contactId = contactId,
+                contactName = contactName,
+                message = message,
+                channel = channel,
                 sentAt = System.currentTimeMillis(),
                 status = status
             )
         )
 
-        // Update last sent date
-        val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-        messageRepository.updateSentStatus(scheduledMessageId, todayStr, null)
+        if (updateSentDate) {
+            val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+            messageRepository.updateSentStatus(scheduledMessageId, todayStr, null)
+        }
+    }
 
-        // Send notification
-        sendNotification(contact.name, status)
+    private fun showWhatsAppNotification(contactName: String, phoneNumber: String, message: String) {
+        val intent = whatsAppSender.getWhatsAppIntent(phoneNumber, message) ?: return
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            phoneNumber.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        return if (success) Result.success() else Result.retry()
+        val notification = NotificationCompat.Builder(applicationContext, HolidayMessengerApp.CHANNEL_MESSAGE_SENT)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("WhatsApp Magic Ready! ✨")
+            .setContentText("Tap to send your festive message to $contactName")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(phoneNumber.hashCode(), notification)
     }
 
     private fun sendNotification(contactName: String, status: MessageStatus) {
@@ -90,13 +128,20 @@ class MessageSenderWorker @AssistedInject constructor(
             HolidayMessengerApp.CHANNEL_MESSAGE_FAILED
 
         val title = if (status == MessageStatus.SENT)
-            "Message sent to $contactName"
+            "Magic Delivered! ✨"
         else
-            "Failed to send message to $contactName"
+            "Oh no! Festive Fumble 😵"
+
+        val message = if (status == MessageStatus.SENT)
+            "Holiday joy has been successfully sent to $contactName! 🎁"
+        else
+            "We couldn't reach $contactName. Tap to try again!"
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
 

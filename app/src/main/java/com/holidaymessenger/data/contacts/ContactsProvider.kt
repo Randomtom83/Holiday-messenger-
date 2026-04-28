@@ -47,14 +47,16 @@ class ContactsProvider @Inject constructor(
                 arrayOf(
                     ContactsContract.Groups._ID,
                     ContactsContract.Groups.TITLE,
-                    ContactsContract.Groups.GROUP_VISIBLE,
                     ContactsContract.Groups.DELETED,
                     ContactsContract.Groups.AUTO_ADD,
                     ContactsContract.Groups.FAVORITES
                 ),
-                // Only visible, non-deleted, non-auto, non-favorites groups
+                // Non-deleted, non-system groups. We deliberately do NOT filter on
+                // GROUP_VISIBLE because Google Contacts leaves user-created labels
+                // with group_visible=0 — only legacy system groups ("My Contacts",
+                // "Starred") get group_visible=1, and we exclude those via
+                // AUTO_ADD / FAVORITES.
                 "${ContactsContract.Groups.DELETED} = 0 AND " +
-                    "${ContactsContract.Groups.GROUP_VISIBLE} = 1 AND " +
                     "${ContactsContract.Groups.AUTO_ADD} = 0 AND " +
                     "${ContactsContract.Groups.FAVORITES} = 0",
                 null,

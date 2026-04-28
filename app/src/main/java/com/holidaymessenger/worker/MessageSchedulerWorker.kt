@@ -1,8 +1,12 @@
 package com.holidaymessenger.worker
 
+import android.app.NotificationManager
 import android.content.Context
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import com.holidaymessenger.HolidayMessengerApp
+import com.holidaymessenger.R
 import com.holidaymessenger.data.db.entity.Frequency
 import com.holidaymessenger.data.db.entity.MessageType
 import com.holidaymessenger.data.repository.ContactRepository
@@ -14,6 +18,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 /**
@@ -21,6 +26,7 @@ import java.util.concurrent.TimeUnit
  * 1. Checking for recurring messages due today
  * 2. Checking for birthday matches
  * 3. Checking for holiday matches
+ * 4. Sending a festive countdown notification
  * For each, it picks a random time in the configured window and enqueues a MessageSenderWorker.
  */
 @HiltWorker
@@ -46,14 +52,39 @@ class MessageSchedulerWorker @AssistedInject constructor(
         // 3. Schedule holiday messages
         scheduleHolidayMessages(today)
 
+        // 4. Festive Countdown Notification
+        sendCountdownNotification(today)
+
         return Result.success()
+    }
+
+    private fun sendCountdownNotification(today: LocalDate) {
+        val nextHoliday = HolidayCalendar.getNextHoliday(today)
+        val daysTo = ChronoUnit.DAYS.between(today, nextHoliday.date)
+
+        val title = if (daysTo == 0L) "IT'S PARTY TIME! 🥳" else "The Magic is Brewing... ✨"
+        val message = if (daysTo == 0L) 
+            "Today is ${nextHoliday.name}! Your festive messages are being prepared!"
+        else 
+            "Only $daysTo days until ${nextHoliday.name}! Is your Squad ready?"
+
+        val notification = NotificationCompat.Builder(applicationContext, HolidayMessengerApp.CHANNEL_SCHEDULER)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        manager.notify(999, notification)
     }
 
     private suspend fun scheduleRecurringMessages(today: LocalDate, todayStr: String) {
         val recurring = messageRepository.getEnabledMessagesByType(MessageType.RECURRING)
 
         for (msg in recurring) {
-            if (msg.lastSentDate == todayStr) continue
+            if (msg.lastSentDate == todayStr || msg.lastScheduledDate == todayStr) continue
 
             val shouldSend = when (msg.frequency) {
                 Frequency.DAILY -> true
@@ -69,27 +100,28 @@ class MessageSchedulerWorker @AssistedInject constructor(
             }
 
             if (shouldSend) {
-                enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today)
+                enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today, todayStr)
             }
         }
     }
 
     private suspend fun scheduleBirthdayMessages(todayMonthDay: String, today: LocalDate) {
+        val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val birthdayContacts = contactRepository.getContactsByBirthday(todayMonthDay)
         val birthdayMessages = messageRepository.getEnabledMessagesByType(MessageType.BIRTHDAY)
 
         for (contact in birthdayContacts) {
             val msg = birthdayMessages.find { it.contactId == contact.id }
             if (msg != null) {
-                val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                if (msg.lastSentDate != todayStr) {
-                    enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today)
+                if (msg.lastSentDate != todayStr && msg.lastScheduledDate != todayStr) {
+                    enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today, todayStr)
                 }
             }
         }
     }
 
     private suspend fun scheduleHolidayMessages(today: LocalDate) {
+        val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val todaysHolidays = HolidayCalendar.getTodaysHolidays(today)
         if (todaysHolidays.isEmpty()) return
 
@@ -101,22 +133,22 @@ class MessageSchedulerWorker @AssistedInject constructor(
                 .filter { it.holidayId == dbHoliday.id }
 
             for (msg in holidayMessages) {
-                val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                if (msg.lastSentDate != todayStr) {
-                    enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today)
+                if (msg.lastSentDate != todayStr && msg.lastScheduledDate != todayStr) {
+                    enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today, todayStr)
                 }
             }
         }
     }
 
-    private fun enqueueMessageSend(
+    private suspend fun enqueueMessageSend(
         scheduledMessageId: Long,
         windowStart: Int,
         windowEnd: Int,
-        date: LocalDate
+        date: LocalDate,
+        todayStr: String
     ) {
         val targetTime = TimeRandomizer.randomTimeInWindow(windowStart, windowEnd, date)
-        val delay = TimeRandomizer.delayFromNow(targetTime) ?: return
+        val delay = TimeRandomizer.delayFromNow(targetTime)
 
         val workRequest = OneTimeWorkRequestBuilder<MessageSenderWorker>()
             .setInputData(
@@ -128,7 +160,15 @@ class MessageSchedulerWorker @AssistedInject constructor(
             .addTag("message_send_${scheduledMessageId}")
             .build()
 
-        WorkManager.getInstance(applicationContext).enqueue(workRequest)
+        // Use UNIQUE work to prevent duplicate enqueues if scheduler runs multiple times
+        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+            "message_send_${scheduledMessageId}",
+            ExistingWorkPolicy.REPLACE, // If it's already scheduled for today, replace it (refreshes timing)
+            workRequest
+        )
+
+        // Mark as scheduled immediately to avoid race conditions
+        messageRepository.updateScheduledDate(scheduledMessageId, todayStr)
     }
 
     companion object {
