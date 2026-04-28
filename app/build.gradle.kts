@@ -3,7 +3,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 android {
@@ -50,11 +51,19 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+            output.outputFileName = "FestiveMagic-${versionName}.apk"
         }
     }
 }
@@ -94,6 +103,12 @@ dependencies {
     // Core
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+
+    // Gemini
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
+    // Konfetti
+    implementation("nl.dionsegijn:konfetti-compose:2.0.5")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
