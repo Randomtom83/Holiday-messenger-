@@ -20,8 +20,7 @@ import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 data class UpcomingSend(
-    val contactName: String,
-    val label: String,
+    val title: String,
     val scheduledTime: Long
 )
 
@@ -85,16 +84,15 @@ class HomeViewModel @Inject constructor(
             HolidayCalendar.getHolidaysForYear(nowDate.year) +
             HolidayCalendar.getHolidaysForYear(nowDate.year + 1)
 
+        // One row per event, not per recipient.
         val holidayUpcoming = calendarHolidays
             .filter { !it.date.isBefore(nowDate) && !it.date.isAfter(cutoffDate) }
-            .flatMap { hd ->
+            .mapNotNull { hd ->
                 val dbHoliday = holidays.find { it.enabled && it.name == hd.name }
-                    ?: return@flatMap emptyList<UpcomingSend>()
-                val contactIds = holidayRepository.getContactIdsForHolidayList(dbHoliday.id)
-                contactIds.mapNotNull { id ->
-                    val c = squad.find { it.id == id } ?: return@mapNotNull null
-                    UpcomingSend(c.name, hd.name, dateToMillis(hd.date))
-                }
+                    ?: return@mapNotNull null
+                val recipients = holidayRepository.getContactIdsForHolidayList(dbHoliday.id)
+                if (recipients.isEmpty()) return@mapNotNull null
+                UpcomingSend(hd.name, dateToMillis(hd.date))
             }
 
         val birthdayUpcoming = squad.mapNotNull { c ->
@@ -106,7 +104,7 @@ class HomeViewModel @Inject constructor(
                 ?: return@mapNotNull null
             if (next.isBefore(nowDate)) next = next.plusYears(1)
             if (next.isAfter(cutoffDate)) return@mapNotNull null
-            UpcomingSend(c.name, "Birthday", dateToMillis(next))
+            UpcomingSend("${c.name}'s Birthday", dateToMillis(next))
         }
 
         val recurringUpcoming = scheduled
@@ -118,12 +116,12 @@ class HomeViewModel @Inject constructor(
             .mapNotNull { sm ->
                 val contact = contactRepository.getContactById(sm.contactId)
                     ?: return@mapNotNull null
-                UpcomingSend(contact.name, "Recurring", sm.nextScheduledTime ?: 0L)
+                UpcomingSend("${contact.name} · Recurring", sm.nextScheduledTime ?: 0L)
             }
 
         val upcomingSends = (holidayUpcoming + birthdayUpcoming + recurringUpcoming)
             .sortedBy { it.scheduledTime }
-            .take(3)
+            .take(5)
 
         // Streak: count consecutive enabled holidays (sorted by date ASC, past ones only)
         // where at least one SENT log exists on that date.

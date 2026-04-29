@@ -264,7 +264,7 @@ fun UpcomingSendsCard(upcoming: List<UpcomingSend>, themeColor: Color) {
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "${u.label} → ${u.contactName}",
+                                u.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
