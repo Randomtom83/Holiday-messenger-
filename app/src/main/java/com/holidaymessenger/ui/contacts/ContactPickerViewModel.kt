@@ -22,6 +22,7 @@ enum class ContactSortOrder {
 data class ContactPickerUiState(
     val deviceContacts: List<ContactsProvider.DeviceContact> = emptyList(),
     val selectedContactIds: Set<Long> = emptySet(),
+    val squadContactIds: Set<Long> = emptySet(),
     val savedContacts: List<Contact> = emptyList(),
     val contactGroups: List<ContactsProvider.ContactGroup> = emptyList(),
     val selectedGroupIds: Set<Long> = emptySet(),
@@ -62,6 +63,15 @@ class ContactPickerViewModel @Inject constructor(
             }
         }
 
+        // Always track squad membership so it can act as a sort tiebreaker on
+        // holiday pickers (squad members float above strangers even before any
+        // contacts have been assigned to the specific holiday).
+        viewModelScope.launch {
+            holidayRepository.getContactIdsForHoliday(0).collect { ids ->
+                _uiState.update { it.copy(squadContactIds = ids.toSet()) }
+            }
+        }
+
         if (holidayId != null && holidayId > 0) {
             viewModelScope.launch {
                 val holiday = holidayRepository.getHolidayById(holidayId)
@@ -74,7 +84,7 @@ class ContactPickerViewModel @Inject constructor(
                 }
             }
         } else if (holidayId == 0L || holidayId == null) {
-            // "The Squad" (holidayId = 0)
+            // "The Squad" (holidayId = 0) — selection IS squad membership
             viewModelScope.launch {
                 holidayRepository.getContactIdsForHoliday(0).collect { ids ->
                     _uiState.update { it.copy(selectedContactIds = ids.toSet()) }
@@ -328,8 +338,15 @@ class ContactPickerViewModel @Inject constructor(
     ): List<ContactsProvider.DeviceContact> {
         return when (order) {
             ContactSortOrder.ALPHABETICAL -> contacts.sortedBy { it.name.lowercase() }
-            ContactSortOrder.SELECTED -> contacts.sortedByDescending {
-                _uiState.value.selectedContactIds.contains(it.id)
+            ContactSortOrder.SELECTED -> {
+                val state = _uiState.value
+                val selected = state.selectedContactIds
+                val squad = state.squadContactIds
+                contacts.sortedWith(
+                    compareByDescending<ContactsProvider.DeviceContact> { selected.contains(it.id) }
+                        .thenByDescending { squad.contains(it.id) }
+                        .thenBy { it.name.lowercase() }
+                )
             }
         }
     }
