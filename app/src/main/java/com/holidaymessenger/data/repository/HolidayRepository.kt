@@ -39,6 +39,9 @@ class HolidayRepository @Inject constructor(
     fun getContactIdsForHoliday(holidayId: Long): Flow<List<Long>> =
         holidayDao.getContactIdsForHoliday(holidayId)
 
+    suspend fun getContactIdsForHolidayList(holidayId: Long): List<Long> =
+        holidayDao.getContactIdsList(holidayId)
+
     suspend fun addContactToHoliday(holidayId: Long, contactId: Long) {
         holidayDao.insertHolidayContactCrossRef(
             HolidayContactCrossRef(holidayId, contactId)

@@ -71,27 +71,59 @@ class HomeViewModel @Inject constructor(
         val lastMessageTime = logs.firstOrNull()?.sentAt ?: 0L
         val isRecentlySent = System.currentTimeMillis() - lastMessageTime < 3600000
 
-        // Upcoming sends — next 3 enabled with a nextScheduledTime
+        // Upcoming sends — derived from real ground truth (calendar holidays + birthdays + recurring).
+        // We don't rely on ScheduledMessage.nextScheduledTime here because the daily scheduler only
+        // populates it on send (via markSent), so it's always null for not-yet-sent holiday rows.
         val now = System.currentTimeMillis()
-        val upcoming = scheduled
-            .filter { it.enabled && (it.nextScheduledTime ?: 0L) > now }
-            .sortedBy { it.nextScheduledTime ?: Long.MAX_VALUE }
-            .take(3)
+        val nowDate = LocalDate.now()
+        val cutoffDate = nowDate.plusDays(30)
+        val zone = ZoneId.systemDefault()
+        fun dateToMillis(d: LocalDate): Long =
+            d.atTime(9, 0).atZone(zone).toInstant().toEpochMilli()
 
-        val upcomingSends = upcoming.mapNotNull { sm ->
-            val contact = contactRepository.getContactById(sm.contactId) ?: return@mapNotNull null
-            val label = when {
-                sm.holidayId != null -> holidayRepository.getHolidayById(sm.holidayId)?.name ?: "Holiday"
-                sm.type == com.holidaymessenger.data.db.entity.MessageType.BIRTHDAY -> "Birthday"
-                sm.type == com.holidaymessenger.data.db.entity.MessageType.RECURRING -> "Recurring"
-                else -> "Scheduled"
+        val calendarHolidays =
+            HolidayCalendar.getHolidaysForYear(nowDate.year) +
+            HolidayCalendar.getHolidaysForYear(nowDate.year + 1)
+
+        val holidayUpcoming = calendarHolidays
+            .filter { !it.date.isBefore(nowDate) && !it.date.isAfter(cutoffDate) }
+            .flatMap { hd ->
+                val dbHoliday = holidays.find { it.enabled && it.name == hd.name }
+                    ?: return@flatMap emptyList<UpcomingSend>()
+                val contactIds = holidayRepository.getContactIdsForHolidayList(dbHoliday.id)
+                contactIds.mapNotNull { id ->
+                    val c = squad.find { it.id == id } ?: return@mapNotNull null
+                    UpcomingSend(c.name, hd.name, dateToMillis(hd.date))
+                }
             }
-            UpcomingSend(
-                contactName = contact.name,
-                label = label,
-                scheduledTime = sm.nextScheduledTime ?: 0L
-            )
+
+        val birthdayUpcoming = squad.mapNotNull { c ->
+            val bday = c.effectiveBirthday ?: return@mapNotNull null
+            val parts = bday.takeLast(5).split("-")
+            val m = parts.getOrNull(0)?.toIntOrNull() ?: return@mapNotNull null
+            val d = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+            var next = runCatching { LocalDate.of(nowDate.year, m, d) }.getOrNull()
+                ?: return@mapNotNull null
+            if (next.isBefore(nowDate)) next = next.plusYears(1)
+            if (next.isAfter(cutoffDate)) return@mapNotNull null
+            UpcomingSend(c.name, "Birthday", dateToMillis(next))
         }
+
+        val recurringUpcoming = scheduled
+            .filter {
+                it.enabled &&
+                    it.type == com.holidaymessenger.data.db.entity.MessageType.RECURRING &&
+                    (it.nextScheduledTime ?: 0L) > now
+            }
+            .mapNotNull { sm ->
+                val contact = contactRepository.getContactById(sm.contactId)
+                    ?: return@mapNotNull null
+                UpcomingSend(contact.name, "Recurring", sm.nextScheduledTime ?: 0L)
+            }
+
+        val upcomingSends = (holidayUpcoming + birthdayUpcoming + recurringUpcoming)
+            .sortedBy { it.scheduledTime }
+            .take(3)
 
         // Streak: count consecutive enabled holidays (sorted by date ASC, past ones only)
         // where at least one SENT log exists on that date.

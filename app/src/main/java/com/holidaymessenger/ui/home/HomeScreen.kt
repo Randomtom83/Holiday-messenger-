@@ -243,7 +243,7 @@ fun UpcomingSendsCard(upcoming: List<UpcomingSend>, themeColor: Color) {
             Spacer(Modifier.height(12.dp))
             if (upcoming.isEmpty()) {
                 Text(
-                    "No upcoming magic — pick some holidays!",
+                    "No upcoming magic — assign people to your enabled holidays!",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
