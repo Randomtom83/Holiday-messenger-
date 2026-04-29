@@ -21,7 +21,8 @@ import javax.inject.Inject
 
 data class UpcomingSend(
     val title: String,
-    val scheduledTime: Long
+    val scheduledTime: Long,
+    val holidayId: Long? = null
 )
 
 data class HomeUiState(
@@ -92,7 +93,7 @@ class HomeViewModel @Inject constructor(
                     ?: return@mapNotNull null
                 val recipients = holidayRepository.getContactIdsForHolidayList(dbHoliday.id)
                 if (recipients.isEmpty()) return@mapNotNull null
-                UpcomingSend(hd.name, dateToMillis(hd.date))
+                UpcomingSend(hd.name, dateToMillis(hd.date), holidayId = dbHoliday.id)
             }
 
         val birthdayUpcoming = squad.mapNotNull { c ->

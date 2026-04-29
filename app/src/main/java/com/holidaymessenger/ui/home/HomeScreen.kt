@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun HomeScreen(
     onNavigateToHistory: () -> Unit,
+    onNavigateToHolidayContacts: (Long) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -185,7 +187,10 @@ fun HomeScreen(
                 item {
                     UpcomingSendsCard(
                         upcoming = uiState.upcomingSends,
-                        themeColor = holidayTheme.primaryColor
+                        themeColor = holidayTheme.primaryColor,
+                        onItemClick = { send ->
+                            send.holidayId?.let { onNavigateToHolidayContacts(it) }
+                        }
                     )
                 }
 
@@ -228,7 +233,11 @@ fun HomeScreen(
 }
 
 @Composable
-fun UpcomingSendsCard(upcoming: List<UpcomingSend>, themeColor: Color) {
+fun UpcomingSendsCard(
+    upcoming: List<UpcomingSend>,
+    themeColor: Color,
+    onItemClick: (UpcomingSend) -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
@@ -249,10 +258,12 @@ fun UpcomingSendsCard(upcoming: List<UpcomingSend>, themeColor: Color) {
                 )
             } else {
                 upcoming.forEach { u ->
+                    val rowMod = Modifier
+                        .fillMaxWidth()
+                        .let { if (u.holidayId != null) it.clickable { onItemClick(u) } else it }
+                        .padding(vertical = 6.dp)
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
+                        modifier = rowMod,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(

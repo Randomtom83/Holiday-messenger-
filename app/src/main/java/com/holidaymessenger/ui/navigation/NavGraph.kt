@@ -95,7 +95,10 @@ fun AppNavGraph() {
             }
             composable(Screen.Home.route) {
                 HomeScreen(
-                    onNavigateToHistory = { navController.navigate("history") }
+                    onNavigateToHistory = { navController.navigate("history") },
+                    onNavigateToHolidayContacts = { holidayId ->
+                        navController.navigate("contacts/holiday/$holidayId")
+                    }
                 )
             }
             composable(Screen.Holidays.route) {

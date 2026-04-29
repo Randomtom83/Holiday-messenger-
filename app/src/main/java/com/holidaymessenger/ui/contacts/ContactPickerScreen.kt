@@ -211,8 +211,37 @@ fun ContactPickerScreen(
                     IconButton(onClick = { showClearConfirm = true }) {
                         Icon(Icons.Filled.DeleteSweep, contentDescription = "Clear All", tint = MaterialTheme.colorScheme.error)
                     }
-                    IconButton(onClick = { showSortMenu = true }) {
-                        Icon(Icons.Filled.FilterList, contentDescription = "Filter/Sort")
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Filled.FilterList, contentDescription = "Filter/Sort")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            Text(
+                                "Sort By",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Selected 🌟") },
+                                leadingIcon = { Icon(Icons.Default.CheckCircle, null) },
+                                onClick = {
+                                    viewModel.setSortOrder(ContactSortOrder.SELECTED)
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("A-Z (Alphabetical)") },
+                                leadingIcon = { Icon(Icons.Default.SortByAlpha, null) },
+                                onClick = {
+                                    viewModel.setSortOrder(ContactSortOrder.ALPHABETICAL)
+                                    showSortMenu = false
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -337,24 +366,6 @@ fun ContactPickerScreen(
         }
     }
 
-    // Sort Menu
-    DropdownMenu(
-        expanded = showSortMenu,
-        onDismissRequest = { showSortMenu = false },
-        modifier = Modifier.padding(8.dp)
-    ) {
-        Text("Sort By", modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-        DropdownMenuItem(
-            text = { Text("Selected 🌟") },
-            leadingIcon = { Icon(Icons.Default.CheckCircle, null) },
-            onClick = { viewModel.setSortOrder(ContactSortOrder.SELECTED); showSortMenu = false }
-        )
-        DropdownMenuItem(
-            text = { Text("A-Z (Alphabetical)") },
-            leadingIcon = { Icon(Icons.Default.SortByAlpha, null) },
-            onClick = { viewModel.setSortOrder(ContactSortOrder.ALPHABETICAL); showSortMenu = false }
-        )
-    }
 }
 
 @Composable
