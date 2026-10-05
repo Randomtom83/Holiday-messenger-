@@ -1,10 +1,11 @@
 name: Weekly Holiday Discovery & Message Agent
 
 on:
-  schedule:
-    # Every Monday at 9am ET (13:00 UTC during EDT, 14:00 UTC during EST)
-    - cron: '0 13 * * 1'
-  workflow_dispatch: # Allow manual trigger
+  # PAUSED: weekly schedule disabled. To resume, restore this block:
+  #   schedule:
+  #     # Every Monday at 9am ET (13:00 UTC during EDT, 14:00 UTC during EST)
+  #     - cron: '0 13 * * 1'
+  workflow_dispatch: # Manual trigger only
 
 permissions:
   contents: write

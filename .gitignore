@@ -12,3 +12,9 @@ local.properties
 /app/schemas
 *.apk
 *.aab
+
+# Local-only folders and files
+/github/
+/AgenticOS/
+/ObsidianVault/
+/.claude/settings.local.json
