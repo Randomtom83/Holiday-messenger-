@@ -8,7 +8,9 @@ import com.holidaymessenger.data.db.entity.ScheduledMessage
 import com.holidaymessenger.data.repository.ContactRepository
 import com.holidaymessenger.data.repository.HolidayRepository
 import com.holidaymessenger.data.repository.MessageRepository
+import com.holidaymessenger.data.review.HolidayReviewRepository
 import com.holidaymessenger.util.HolidayCalendar
+import com.holidaymessenger.util.HolidayPlanner
 import com.holidaymessenger.util.JoyMeterRules
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -37,14 +39,16 @@ data class HomeUiState(
     val joyBreakdown: JoyMeterRules.Breakdown = JoyMeterRules.Breakdown(0, 0, 0),
     val joyScore: Int = 0,
     val upcomingSends: List<UpcomingSend> = emptyList(),
-    val streak: Int = 0
+    val streak: Int = 0,
+    val pendingReviewCount: Int = 0
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val messageRepository: MessageRepository,
     private val holidayRepository: HolidayRepository,
-    private val contactRepository: ContactRepository
+    private val contactRepository: ContactRepository,
+    private val holidayReviewRepository: HolidayReviewRepository
 ) : ViewModel() {
 
     private val _refreshTrigger = MutableStateFlow(0)
@@ -140,12 +144,19 @@ class HomeViewModel @Inject constructor(
             totalSquadMembers = squadCount,
             isBoosted = isRecentlySent,
             upcomingSends = upcomingSends,
-            streak = streak
+            streak = streak,
+            pendingReviewCount = holidayReviewRepository.queue()
+                .count { it.state == HolidayPlanner.ReviewState.PENDING }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
     init {
         refreshHolidays()
+    }
+
+    /** Re-runs the combine so values that are not in Room (the review skip list) are fresh. */
+    fun refresh() {
+        _refreshTrigger.value += 1
     }
 
     fun refreshHolidays() {

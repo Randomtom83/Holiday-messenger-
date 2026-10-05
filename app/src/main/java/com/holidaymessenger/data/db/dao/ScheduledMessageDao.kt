@@ -23,6 +23,9 @@ interface ScheduledMessageDao {
     @Query("SELECT * FROM scheduled_messages WHERE type = :type")
     fun getScheduledMessagesByType(type: MessageType): Flow<List<ScheduledMessage>>
 
+    @Query("SELECT * FROM scheduled_messages WHERE type = :type")
+    suspend fun getMessagesByTypeList(type: MessageType): List<ScheduledMessage>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertScheduledMessage(message: ScheduledMessage): Long
 
@@ -37,6 +40,9 @@ interface ScheduledMessageDao {
 
     @Query("UPDATE scheduled_messages SET lastScheduledDate = :date WHERE id = :id")
     suspend fun updateScheduledDate(id: Long, date: String)
+
+    @Query("UPDATE scheduled_messages SET lastScheduledDate = NULL WHERE id = :id")
+    suspend fun clearScheduledDate(id: Long)
 
     @Query("UPDATE scheduled_messages SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)

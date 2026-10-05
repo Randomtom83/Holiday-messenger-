@@ -56,8 +56,16 @@ class HolidayMessengerApp : Application(), Configuration.Provider {
             description = "Background holiday preparations"
         }
 
+        val reviewChannel = NotificationChannel(
+            CHANNEL_REVIEW,
+            "Messages to review",
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "Holiday messages waiting for your approval before they send"
+        }
+
         manager.createNotificationChannels(
-            listOf(messageSentChannel, messageFailedChannel, schedulerChannel)
+            listOf(messageSentChannel, messageFailedChannel, schedulerChannel, reviewChannel)
         )
     }
 
@@ -65,5 +73,6 @@ class HolidayMessengerApp : Application(), Configuration.Provider {
         const val CHANNEL_MESSAGE_SENT = "message_sent"
         const val CHANNEL_MESSAGE_FAILED = "message_failed"
         const val CHANNEL_SCHEDULER = "scheduler"
+        const val CHANNEL_REVIEW = "review"
     }
 }

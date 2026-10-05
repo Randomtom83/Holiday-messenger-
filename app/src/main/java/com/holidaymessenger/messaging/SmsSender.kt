@@ -53,12 +53,18 @@ class SmsSender @Inject constructor(
         context.startActivity(intent)
     }
 
-    private fun sendGroupMms(phoneNumbers: String, message: String) {
-        val intent = Intent(Intent.ACTION_SENDTO).apply {
+    /**
+     * Opens the messaging app with the group and text filled in. Android does not let a background worker
+     * open it, so scheduled group messages hand this to a notification the owner taps.
+     */
+    fun groupComposeIntent(phoneNumbers: String, message: String): Intent =
+        Intent(Intent.ACTION_SENDTO).apply {
             data = Uri.parse("smsto:$phoneNumbers")
             putExtra("sms_body", message)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(intent)
+
+    private fun sendGroupMms(phoneNumbers: String, message: String) {
+        context.startActivity(groupComposeIntent(phoneNumbers, message))
     }
 }

@@ -40,7 +40,7 @@ private val pages = listOf(
     OnboardingPage(
         "🪄",
         "Craft Your Magic",
-        "Write custom messages (or let AI help). We'll send them automatically at the perfect time."
+        "Write custom messages (or let AI help). Before a holiday we'll show you each message to approve, then send it at a good time."
     )
 )
 

@@ -478,7 +478,7 @@ private fun AddEditHolidayDialog(
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            if (hasDate) "Triggers automatically each year" else "Squad-style — manual sends only",
+                            if (hasDate) "Comes up for your review each year. Nothing sends until you approve it." else "Squad-style — manual sends only",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
