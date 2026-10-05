@@ -18,3 +18,6 @@ local.properties
 /AgenticOS/
 /ObsidianVault/
 /.claude/settings.local.json
+/docs/
+/holiday-suggestions/logs/
+/scripts/weekly-holiday-agent.ps1
