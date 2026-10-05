@@ -12,3 +12,12 @@ local.properties
 /app/schemas
 *.apk
 *.aab
+
+# Local-only folders and files
+/github/
+/AgenticOS/
+/ObsidianVault/
+/.claude/settings.local.json
+/docs/
+/holiday-suggestions/logs/
+/scripts/weekly-holiday-agent.ps1
