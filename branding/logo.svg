@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Holiday Messenger logo">
+  <title>Holiday Messenger</title>
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#E53935"/>
+      <stop offset="100%" stop-color="#B71C1C"/>
+    </linearGradient>
+    <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#8D6E63"/>
+      <stop offset="100%" stop-color="#5D4037"/>
+    </linearGradient>
+    <linearGradient id="bellyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#FFF8E1"/>
+      <stop offset="100%" stop-color="#FFE8A8"/>
+    </linearGradient>
+    <radialGradient id="sparkleGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"  stop-color="#FFE082"/>
+      <stop offset="100%" stop-color="#F9A825"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Festive rounded square background -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#bgGrad)"/>
+
+  <!-- Background confetti dots -->
+  <g fill="#FFFFFF" opacity="0.10">
+    <circle cx="70"  cy="90"  r="6"/>
+    <circle cx="430" cy="70"  r="4"/>
+    <circle cx="60"  cy="430" r="5"/>
+    <circle cx="450" cy="440" r="6"/>
+    <circle cx="380" cy="120" r="3"/>
+    <circle cx="120" cy="380" r="3"/>
+  </g>
+
+  <!-- =================== OWL =================== -->
+  <g filter="url(#softShadow)">
+    <!-- Ear tufts -->
+    <path d="M 175 165 L 200 130 L 215 175 Z" fill="url(#bodyGrad)"/>
+    <path d="M 337 165 L 312 130 L 297 175 Z" fill="url(#bodyGrad)"/>
+
+    <!-- Body (rounded oval) -->
+    <ellipse cx="256" cy="270" rx="115" ry="135" fill="url(#bodyGrad)"/>
+
+    <!-- Wings (subtle side curves) -->
+    <path d="M 145 270 Q 130 330 165 380 Q 175 340 175 290 Z" fill="#5D4037" opacity="0.85"/>
+    <path d="M 367 270 Q 382 330 347 380 Q 337 340 337 290 Z" fill="#5D4037" opacity="0.85"/>
+
+    <!-- Belly -->
+    <ellipse cx="256" cy="305" rx="78" ry="92" fill="url(#bellyGrad)"/>
+  </g>
+
+  <!-- Eye discs (white) -->
+  <circle cx="212" cy="225" r="38" fill="#FFFFFF"/>
+  <circle cx="300" cy="225" r="38" fill="#FFFFFF"/>
+  <!-- Eye outlines -->
+  <circle cx="212" cy="225" r="38" fill="none" stroke="#5D4037" stroke-width="3"/>
+  <circle cx="300" cy="225" r="38" fill="none" stroke="#5D4037" stroke-width="3"/>
+  <!-- Pupils -->
+  <circle cx="212" cy="228" r="16" fill="#212121"/>
+  <circle cx="300" cy="228" r="16" fill="#212121"/>
+  <!-- Eye highlights -->
+  <circle cx="218" cy="220" r="5" fill="#FFFFFF"/>
+  <circle cx="306" cy="220" r="5" fill="#FFFFFF"/>
+
+  <!-- Beak -->
+  <path d="M 256 250 L 244 272 L 268 272 Z" fill="#FFC107" stroke="#C8961F" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- =================== ENVELOPE =================== -->
+  <g>
+    <!-- Envelope body -->
+    <rect x="196" y="305" width="120" height="78" rx="6" ry="6"
+          fill="#FFFFFF" stroke="#C0A060" stroke-width="3"/>
+    <!-- Envelope flap (V) -->
+    <path d="M 196 311 L 256 352 L 316 311"
+          fill="none" stroke="#C0A060" stroke-width="3" stroke-linejoin="round"/>
+    <!-- Bottom side folds -->
+    <path d="M 196 383 L 232 348 M 316 383 L 280 348"
+          stroke="#D8C28A" stroke-width="2" fill="none"/>
+    <!-- Red wax seal -->
+    <circle cx="256" cy="358" r="10" fill="#C62828" stroke="#7F1010" stroke-width="2"/>
+    <text x="256" y="362" font-family="Georgia, serif" font-size="11" font-weight="bold"
+          fill="#FFE082" text-anchor="middle">H</text>
+  </g>
+
+  <!-- Owl feet peeking under -->
+  <g fill="#F9A825" stroke="#C8961F" stroke-width="2" stroke-linejoin="round">
+    <path d="M 220 398 L 215 410 L 225 410 L 222 400 Z"/>
+    <path d="M 292 398 L 287 410 L 297 410 L 294 400 Z"/>
+  </g>
+
+  <!-- Festive sparkle (top right) -->
+  <g transform="translate(390 130)">
+    <circle r="22" fill="url(#sparkleGrad)" opacity="0.95"/>
+    <path d="M 0 -28 L 6 -6 L 28 0 L 6 6 L 0 28 L -6 6 L -28 0 L -6 -6 Z"
+          fill="#FFFFFF" opacity="0.95"/>
+  </g>
+
+  <!-- Small twinkles -->
+  <g fill="#FFE082">
+    <circle cx="120" cy="180" r="4"/>
+    <circle cx="135" cy="320" r="3"/>
+    <circle cx="395" cy="320" r="3"/>
+    <circle cx="380" cy="200" r="3"/>
+  </g>
+</svg>

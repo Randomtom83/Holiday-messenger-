@@ -4,6 +4,7 @@ import com.holidaymessenger.data.db.dao.MessageLogDao
 import com.holidaymessenger.data.db.dao.MessageTemplateDao
 import com.holidaymessenger.data.db.dao.ScheduledMessageDao
 import com.holidaymessenger.data.db.entity.*
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,6 +21,32 @@ class MessageRepository @Inject constructor(
 
     fun getScheduledMessagesByType(type: MessageType): Flow<List<ScheduledMessage>> =
         scheduledMessageDao.getScheduledMessagesByType(type)
+
+    fun getRecurringMessageItems(): Flow<List<com.holidaymessenger.ui.recurring.RecurringMessageItem>> {
+        return scheduledMessageDao.getRecurringMessageItems(MessageType.RECURRING).map { items ->
+            items.map { item ->
+                com.holidaymessenger.ui.recurring.RecurringMessageItem(
+                    scheduledMessage = ScheduledMessage(
+                        id = item.id,
+                        contactId = item.contactId,
+                        templateId = item.templateId,
+                        type = item.type,
+                        channel = item.channel,
+                        frequency = item.frequency,
+                        windowStartMinutes = item.windowStartMinutes,
+                        windowEndMinutes = item.windowEndMinutes,
+                        enabled = item.enabled,
+                        lastSentDate = item.lastSentDate,
+                        nextScheduledTime = item.nextScheduledTime,
+                        lastScheduledDate = item.lastScheduledDate,
+                        holidayId = item.holidayId
+                    ),
+                    contactName = item.contactName,
+                    templateText = item.templateText
+                )
+            }
+        }
+    }
 
     suspend fun getEnabledMessages(): List<ScheduledMessage> =
         scheduledMessageDao.getEnabledMessages()
@@ -41,6 +68,9 @@ class MessageRepository @Inject constructor(
 
     suspend fun updateSentStatus(id: Long, date: String, nextTime: Long?) =
         scheduledMessageDao.updateSentStatus(id, date, nextTime)
+
+    suspend fun updateScheduledDate(id: Long, date: String) =
+        scheduledMessageDao.updateScheduledDate(id, date)
 
     suspend fun setEnabled(id: Long, enabled: Boolean) =
         scheduledMessageDao.setEnabled(id, enabled)

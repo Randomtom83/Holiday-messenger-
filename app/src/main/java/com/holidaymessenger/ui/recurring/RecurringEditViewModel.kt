@@ -70,17 +70,14 @@ class RecurringEditViewModel @Inject constructor(
         _uiState.update { it.copy(channel = channel) }
     }
 
-    fun parseAndSetStartTime(input: String) {
-        val minutes = parseTimeInput(input)
-        if (minutes != null) {
-            _uiState.update { it.copy(windowStartMinutes = minutes) }
-        }
-    }
-
-    fun parseAndSetEndTime(input: String) {
-        val minutes = parseTimeInput(input)
-        if (minutes != null) {
-            _uiState.update { it.copy(windowEndMinutes = minutes) }
+    fun setTime(hour: Int, minute: Int, isStart: Boolean) {
+        val minutes = hour * 60 + minute
+        _uiState.update {
+            if (isStart) {
+                it.copy(windowStartMinutes = minutes)
+            } else {
+                it.copy(windowEndMinutes = minutes)
+            }
         }
     }
 
@@ -133,27 +130,5 @@ class RecurringEditViewModel @Inject constructor(
                 text = text
             )
         )
-    }
-
-    /**
-     * Parses time input like "11:00 AM", "2:00 PM", "14:00" into minutes from midnight.
-     */
-    private fun parseTimeInput(input: String): Int? {
-        return try {
-            val cleaned = input.trim().uppercase()
-            val isPM = cleaned.contains("PM")
-            val isAM = cleaned.contains("AM")
-            val timePart = cleaned.replace("AM", "").replace("PM", "").trim()
-            val parts = timePart.split(":")
-            var hours = parts[0].trim().toInt()
-            val minutes = if (parts.size > 1) parts[1].trim().toInt() else 0
-
-            if (isPM && hours != 12) hours += 12
-            if (isAM && hours == 12) hours = 0
-
-            hours * 60 + minutes
-        } catch (e: Exception) {
-            null
-        }
     }
 }

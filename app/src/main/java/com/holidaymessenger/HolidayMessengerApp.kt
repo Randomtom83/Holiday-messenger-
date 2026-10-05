@@ -29,26 +29,31 @@ class HolidayMessengerApp : Application(), Configuration.Provider {
 
         val messageSentChannel = NotificationChannel(
             CHANNEL_MESSAGE_SENT,
-            "Message Sent",
+            "Magic Delivered! ✨",
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Notifications when messages are sent"
+            description = "Notifications when festive joy is successfully spread"
+            enableLights(true)
+            lightColor = 0xFF2E7D32.toInt() // Festive Green
         }
 
         val messageFailedChannel = NotificationChannel(
             CHANNEL_MESSAGE_FAILED,
-            "Message Failed",
+            "Festive Fumbles 😵",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notifications when messages fail to send"
+            description = "Notifications when the magic hits a snag"
+            enableLights(true)
+            lightColor = 0xFFC62828.toInt() // Festive Red
+            enableVibration(true)
         }
 
         val schedulerChannel = NotificationChannel(
             CHANNEL_SCHEDULER,
-            "Scheduler",
+            "Magic Workshop 🛠️",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Background scheduling notifications"
+            description = "Background holiday preparations"
         }
 
         manager.createNotificationChannels(

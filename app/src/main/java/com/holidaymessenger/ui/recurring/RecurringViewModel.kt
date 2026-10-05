@@ -10,6 +10,24 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class RecurringMessageItemInternal(
+    val id: Long,
+    val contactId: Long,
+    val templateId: Long,
+    val type: MessageType,
+    val channel: Channel,
+    val frequency: Frequency,
+    val windowStartMinutes: Int,
+    val windowEndMinutes: Int,
+    val enabled: Boolean,
+    val lastSentDate: String?,
+    val nextScheduledTime: Long?,
+    val lastScheduledDate: String?,
+    val holidayId: Long?,
+    val contactName: String,
+    val templateText: String
+)
+
 data class RecurringMessageItem(
     val scheduledMessage: ScheduledMessage,
     val contactName: String,
@@ -27,19 +45,8 @@ class RecurringViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uiState: StateFlow<RecurringUiState> =
-        messageRepository.getScheduledMessagesByType(MessageType.RECURRING)
-            .map { messages ->
-                val items = messages.map { msg ->
-                    val contact = contactRepository.getContactById(msg.contactId)
-                    val template = messageRepository.getTemplateById(msg.templateId)
-                    RecurringMessageItem(
-                        scheduledMessage = msg,
-                        contactName = contact?.name ?: "Unknown",
-                        templateText = template?.text ?: ""
-                    )
-                }
-                RecurringUiState(messages = items)
-            }
+        messageRepository.getRecurringMessageItems()
+            .map { items -> RecurringUiState(messages = items) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RecurringUiState())
 
     fun toggleEnabled(message: ScheduledMessage) {

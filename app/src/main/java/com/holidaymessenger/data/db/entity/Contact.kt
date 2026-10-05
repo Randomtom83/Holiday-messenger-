@@ -12,7 +12,8 @@ data class Contact(
     val birthday: String? = null,
     val birthdayOverride: String? = null,
     val preferredChannel: Channel = Channel.SMS,
-    val lastSmsSentTimestamp: Long? = null
+    val lastSmsSentTimestamp: Long? = null,
+    val birthdayTemplateId: Long? = null
 ) {
     @get:Ignore
     val effectiveBirthday: String?

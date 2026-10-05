@@ -6,14 +6,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.holidaymessenger.worker.MessageSenderWorker
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +32,7 @@ fun RecurringScreen(
     viewModel: RecurringViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -69,7 +79,13 @@ fun RecurringScreen(
                         item = item,
                         onToggle = { viewModel.toggleEnabled(item.scheduledMessage) },
                         onEdit = { onEdit(item.scheduledMessage.id) },
-                        onDelete = { viewModel.deleteMessage(item.scheduledMessage) }
+                        onDelete = { viewModel.deleteMessage(item.scheduledMessage) },
+                        onTest = {
+                            val req = OneTimeWorkRequestBuilder<MessageSenderWorker>()
+                                .setInputData(workDataOf(MessageSenderWorker.KEY_SCHEDULED_MESSAGE_ID to item.scheduledMessage.id))
+                                .build()
+                            WorkManager.getInstance(context).enqueue(req)
+                        }
                     )
                 }
 
@@ -85,11 +101,16 @@ private fun RecurringMessageCard(
     item: RecurringMessageItem,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onTest: () -> Unit
 ) {
     val msg = item.scheduledMessage
     val windowStart = formatMinutes(msg.windowStartMinutes)
     val windowEnd = formatMinutes(msg.windowEndMinutes)
+    val nextFire = msg.nextScheduledTime?.let {
+        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("MMM d, h:mm a"))
+    } ?: "not scheduled"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -116,6 +137,19 @@ private fun RecurringMessageCard(
                     "${msg.frequency.name.lowercase().replaceFirstChar { it.uppercase() }} | $windowStart - $windowEnd | ${msg.channel.name}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    "Next: $nextFire",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            IconButton(onClick = onTest) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = "Test send",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 

@@ -21,18 +21,38 @@ class BirthdayCheckWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val deviceContacts = contactsProvider.getDeviceContacts()
+        return try {
+            val deviceContacts = contactsProvider.getDeviceContacts()
 
-        for (device in deviceContacts) {
-            if (device.birthday == null) continue
-            val existing = contactRepository.getContactById(device.id) ?: continue
+            for (device in deviceContacts) {
+                if (device.birthday == null) continue
+                val existing = contactRepository.getContactById(device.id) ?: continue
 
-            // Update birthday if it changed and there's no manual override
-            if (existing.birthdayOverride == null && existing.birthday != device.birthday) {
-                contactRepository.updateContact(existing.copy(birthday = device.birthday))
+                // Update birthday if it changed and there's no manual override
+                if (existing.birthdayOverride == null && existing.birthday != device.birthday) {
+                    contactRepository.updateContact(existing.copy(birthday = device.birthday))
+                }
             }
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
         }
+    }
 
-        return Result.success()
+    companion object {
+        const val WORK_NAME = "birthday_check"
+
+        fun buildPeriodicRequest(): androidx.work.PeriodicWorkRequest {
+            return androidx.work.PeriodicWorkRequestBuilder<BirthdayCheckWorker>(
+                7, java.util.concurrent.TimeUnit.DAYS
+            )
+                .setConstraints(
+                    androidx.work.Constraints.Builder()
+                        .setRequiredNetworkType(androidx.work.NetworkType.NOT_REQUIRED)
+                        .setRequiresBatteryNotLow(true)
+                        .build()
+                )
+                .build()
+        }
     }
 }

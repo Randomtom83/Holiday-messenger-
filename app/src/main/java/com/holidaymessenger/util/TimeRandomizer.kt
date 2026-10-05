@@ -23,22 +23,22 @@ object TimeRandomizer {
         date: LocalDate = LocalDate.now(),
         random: Random = Random
     ): Long {
-        require(windowEndMinutes > windowStartMinutes) {
-            "Window end ($windowEndMinutes) must be after start ($windowStartMinutes)"
-        }
-        val randomMinute = random.nextInt(windowStartMinutes, windowEndMinutes)
-        val hours = randomMinute / 60
-        val minutes = randomMinute % 60
+        val start = windowStartMinutes.coerceAtLeast(0)
+        val end = windowEndMinutes.coerceAtMost(24 * 60 - 1).coerceAtLeast(start + 1)
+        
+        val randomMinute = random.nextInt(start, end)
+        val hours = (randomMinute / 60).coerceIn(0, 23)
+        val minutes = (randomMinute % 60).coerceIn(0, 59)
         val dateTime = LocalDateTime.of(date, LocalTime.of(hours, minutes))
         return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
 
     /**
      * Returns the delay in milliseconds from now to the target time.
-     * Returns null if the target time is in the past.
+     * Returns 0 if the target time is in the past.
      */
-    fun delayFromNow(targetTimeMillis: Long): Long? {
+    fun delayFromNow(targetTimeMillis: Long): Long {
         val delay = targetTimeMillis - System.currentTimeMillis()
-        return if (delay > 0) delay else null
+        return if (delay > 0) delay else 0L
     }
 }

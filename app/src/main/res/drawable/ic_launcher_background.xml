@@ -5,6 +5,14 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#FFEADDFF"
+        android:fillColor="#FF2196F3"
         android:pathData="M0,0H108V108H0V0Z" />
+    <!-- Distant Stars for a Magical Night -->
+    <path
+        android:fillColor="#80FFFFFF"
+        android:pathData="M15,20 L16,21 L15,22 L14,21 Z M85,15 L86,16 L85,17 L84,16 Z M30,85 L31,86 L30,87 L29,86 Z M90,80 L91,81 L90,82 L89,81 Z" />
+    <!-- Gentle Snow/Confetti -->
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M54,10 A2,2 0 1 1 53.99,10 Z M20,40 A1.5,1.5 0 1 1 19.99,40 Z M80,60 A1.8,1.8 0 1 1 79.99,60 Z M10,75 A1,1 0 1 1 9.99,75 Z" />
 </vector>
