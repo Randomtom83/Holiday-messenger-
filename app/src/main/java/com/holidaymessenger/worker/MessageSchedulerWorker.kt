@@ -1,18 +1,25 @@
 package com.holidaymessenger.worker
 
+import android.Manifest
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.holidaymessenger.HolidayMessengerApp
+import com.holidaymessenger.MainActivity
 import com.holidaymessenger.R
 import com.holidaymessenger.data.db.entity.Frequency
 import com.holidaymessenger.data.db.entity.MessageType
 import com.holidaymessenger.data.repository.ContactRepository
-import com.holidaymessenger.data.repository.HolidayRepository
 import com.holidaymessenger.data.repository.MessageRepository
+import com.holidaymessenger.data.review.HolidayReviewRepository
 import com.holidaymessenger.util.HolidayCalendar
+import com.holidaymessenger.util.HolidayPlanner
 import com.holidaymessenger.util.TimeRandomizer
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -25,9 +32,10 @@ import java.util.concurrent.TimeUnit
  * Runs daily (scheduled at ~5 AM). Plans all messages for the day by:
  * 1. Checking for recurring messages due today
  * 2. Checking for birthday matches
- * 3. Checking for holiday matches
+ * 3. Asking the owner to review holiday messages (nothing sends until they approve)
  * 4. Sending a festive countdown notification
- * For each, it picks a random time in the configured window and enqueues a MessageSenderWorker.
+ * Recurring and birthday messages pick a random time in their window and enqueue a MessageSenderWorker.
+ * Holiday messages are enqueued by [HolidayReviewRepository.approve] instead.
  */
 @HiltWorker
 class MessageSchedulerWorker @AssistedInject constructor(
@@ -35,7 +43,7 @@ class MessageSchedulerWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val messageRepository: MessageRepository,
     private val contactRepository: ContactRepository,
-    private val holidayRepository: HolidayRepository
+    private val holidayReviewRepository: HolidayReviewRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -49,8 +57,8 @@ class MessageSchedulerWorker @AssistedInject constructor(
         // 2. Schedule birthday messages
         scheduleBirthdayMessages(todayMonthDay, today)
 
-        // 3. Schedule holiday messages
-        scheduleHolidayMessages(today)
+        // 3. Ask for review of holiday messages (nothing is sent until approved)
+        notifyHolidayReview(today)
 
         // 4. Festive Countdown Notification
         sendCountdownNotification(today)
@@ -64,7 +72,7 @@ class MessageSchedulerWorker @AssistedInject constructor(
 
         val title = if (daysTo == 0L) "IT'S PARTY TIME! 🥳" else "The Magic is Brewing... ✨"
         val message = if (daysTo == 0L) 
-            "Today is ${nextHoliday.name}! Your festive messages are being prepared!"
+            "Today is ${nextHoliday.name}! Check the app to review your messages."
         else 
             "Only $daysTo days until ${nextHoliday.name}! Is your Squad ready?"
 
@@ -120,24 +128,41 @@ class MessageSchedulerWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun scheduleHolidayMessages(today: LocalDate) {
-        val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
-        val todaysHolidays = HolidayCalendar.getTodaysHolidays(today)
-        if (todaysHolidays.isEmpty()) return
+    private suspend fun notifyHolidayReview(today: LocalDate) {
+        val pending = holidayReviewRepository.queue(today)
+            .filter { it.state == HolidayPlanner.ReviewState.PENDING }
+        if (pending.isEmpty()) return
 
-        val enabledHolidays = holidayRepository.getEnabledHolidays()
+        if (ContextCompat.checkSelfPermission(
+                applicationContext,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return
 
-        for (calendarHoliday in todaysHolidays) {
-            val dbHoliday = enabledHolidays.find { it.name == calendarHoliday.name } ?: continue
-            val holidayMessages = messageRepository.getEnabledMessagesByType(MessageType.HOLIDAY)
-                .filter { it.holidayId == dbHoliday.id }
+        val holidayNames = pending.map { it.holidayName }.distinct().joinToString(", ")
+        val count = pending.size
+        val title = if (count == 1) "1 message to review" else "$count messages to review"
 
-            for (msg in holidayMessages) {
-                if (msg.lastSentDate != todayStr && msg.lastScheduledDate != todayStr) {
-                    enqueueMessageSend(msg.id, msg.windowStartMinutes, msg.windowEndMinutes, today, todayStr)
-                }
-            }
-        }
+        val openApp = PendingIntent.getActivity(
+            applicationContext,
+            REVIEW_NOTIFICATION_ID,
+            Intent(applicationContext, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(applicationContext, HolidayMessengerApp.CHANNEL_REVIEW)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText("$holidayNames: nothing sends until you approve it.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(openApp)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        manager.notify(REVIEW_NOTIFICATION_ID, notification)
     }
 
     private suspend fun enqueueMessageSend(
@@ -173,6 +198,7 @@ class MessageSchedulerWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "message_scheduler"
+        private const val REVIEW_NOTIFICATION_ID = 1001
 
         fun buildPeriodicRequest(): PeriodicWorkRequest {
             return PeriodicWorkRequestBuilder<MessageSchedulerWorker>(

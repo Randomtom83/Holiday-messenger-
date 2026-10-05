@@ -22,6 +22,7 @@ import com.holidaymessenger.ui.history.HistoryScreen
 import com.holidaymessenger.ui.holidays.HolidayScreen
 import com.holidaymessenger.ui.home.HomeScreen
 import com.holidaymessenger.ui.onboarding.OnboardingScreen
+import com.holidaymessenger.ui.review.ReviewScreen
 import com.holidaymessenger.ui.recurring.RecurringEditScreen
 import com.holidaymessenger.ui.recurring.RecurringScreen
 import com.holidaymessenger.ui.settings.SettingsScreen
@@ -96,6 +97,7 @@ fun AppNavGraph() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToHistory = { navController.navigate("history") },
+                    onNavigateToReview = { navController.navigate("review") },
                     onNavigateToHolidayContacts = { holidayId ->
                         navController.navigate("contacts/holiday/$holidayId")
                     }
@@ -122,6 +124,9 @@ fun AppNavGraph() {
             }
             composable("history") {
                 HistoryScreen(onBack = { navController.popBackStack() })
+            }
+            composable("review") {
+                ReviewScreen(onBack = { navController.popBackStack() })
             }
             composable("contacts/holiday/{holidayId}") { backStackEntry ->
                 val holidayId = backStackEntry.arguments?.getString("holidayId")?.toLongOrNull() ?: 0

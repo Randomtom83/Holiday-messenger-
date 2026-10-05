@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.holidaymessenger.data.db.entity.MessageLog
 import com.holidaymessenger.data.db.entity.MessageStatus
@@ -49,9 +50,14 @@ import java.util.concurrent.TimeUnit
 fun HomeScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToHolidayContacts: (Long) -> Unit = {},
+    onNavigateToReview: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    LifecycleResumeEffect(Unit) {
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
     val holidayTheme = getHolidayTheme(uiState.nextHoliday?.name)
     val context = LocalContext.current
 
@@ -146,6 +152,16 @@ fun HomeScreen(
                         daysLeft = uiState.daysToNextHoliday,
                         theme = holidayTheme
                     )
+                }
+
+                if (uiState.pendingReviewCount > 0) {
+                    item {
+                        ReviewBanner(
+                            count = uiState.pendingReviewCount,
+                            themeColor = holidayTheme.primaryColor,
+                            onClick = onNavigateToReview
+                        )
+                    }
                 }
 
                 item {
@@ -564,5 +580,28 @@ fun getHolidayTheme(holidayName: String?): HolidayTheme {
         "Independence Day" -> HolidayTheme(Color(0xFFB71C1C), Color(0xFF0D47A1), Icons.Default.Flag)
         "Juneteenth" -> HolidayTheme(Color(0xFFB71C1C), Color(0xFF1B5E20), Icons.Default.Star)
         else -> HolidayTheme(Color(0xFF6200EE), Color(0xFF03DAC5), Icons.Default.Event)
+    }
+}
+
+@Composable
+private fun ReviewBanner(count: Int, themeColor: Color, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = themeColor.copy(alpha = 0.12f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                if (count == 1) "1 message to review" else "$count messages to review",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                color = themeColor
+            )
+            Text(
+                "Nothing sends until you approve it. Tap to review.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }

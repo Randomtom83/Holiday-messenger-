@@ -82,7 +82,7 @@ fun SettingsScreen(
             // Scheduler status
             ModernSettingsCard(
                 title = "Message Scheduler",
-                description = "Runs daily at 5:00 AM. Each message is sent at a random time within its window.",
+                description = "Runs daily at 5:00 AM. Birthday and recurring messages send at a random time in their window. Holiday messages wait for your approval.",
                 icon = Icons.Default.Schedule,
                 actionText = "Run Now",
                 onAction = { viewModel.runSchedulerNow(context) }
@@ -91,7 +91,7 @@ fun SettingsScreen(
             // About
             ModernSettingsCard(
                 title = "About",
-                description = "Holiday Messenger v1.0.0\nAutomatically send holiday greetings and birthday wishes to your loved ones.",
+                description = "Holiday Messenger v1.0.0\nHoliday greetings you review and approve, plus birthday wishes, sent to the people you care about.",
                 icon = Icons.Default.Info,
                 actionText = "Privacy Policy",
                 onAction = {

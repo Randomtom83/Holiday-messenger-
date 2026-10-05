@@ -54,6 +54,10 @@ class MessageRepository @Inject constructor(
     suspend fun getEnabledMessagesByType(type: MessageType): List<ScheduledMessage> =
         scheduledMessageDao.getEnabledMessagesByType(type)
 
+    /** All rows of [type], enabled or not. */
+    suspend fun getMessagesByType(type: MessageType): List<ScheduledMessage> =
+        scheduledMessageDao.getMessagesByTypeList(type)
+
     suspend fun getScheduledMessageById(id: Long): ScheduledMessage? =
         scheduledMessageDao.getScheduledMessageById(id)
 
@@ -71,6 +75,9 @@ class MessageRepository @Inject constructor(
 
     suspend fun updateScheduledDate(id: Long, date: String) =
         scheduledMessageDao.updateScheduledDate(id, date)
+
+    suspend fun clearScheduledDate(id: Long) =
+        scheduledMessageDao.clearScheduledDate(id)
 
     suspend fun setEnabled(id: Long, enabled: Boolean) =
         scheduledMessageDao.setEnabled(id, enabled)

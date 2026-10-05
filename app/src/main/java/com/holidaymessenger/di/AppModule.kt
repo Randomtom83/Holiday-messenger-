@@ -4,6 +4,12 @@ import android.content.Context
 import androidx.room.Room
 import com.holidaymessenger.data.db.AppDatabase
 import com.holidaymessenger.data.db.dao.*
+import com.holidaymessenger.data.review.AndroidHolidayDateSource
+import com.holidaymessenger.data.review.HolidayDateSource
+import com.holidaymessenger.data.review.PrefsReviewSkipStore
+import com.holidaymessenger.data.review.ReviewSkipStore
+import com.holidaymessenger.data.review.SendEnqueuer
+import com.holidaymessenger.data.review.WorkManagerSendEnqueuer
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -41,4 +47,18 @@ object AppModule {
 
     @Provides
     fun provideMessageLogDao(db: AppDatabase): MessageLogDao = db.messageLogDao()
+
+    @Provides
+    @Singleton
+    fun provideSendEnqueuer(@ApplicationContext context: Context): SendEnqueuer =
+        WorkManagerSendEnqueuer(context)
+
+    @Provides
+    @Singleton
+    fun provideReviewSkipStore(@ApplicationContext context: Context): ReviewSkipStore =
+        PrefsReviewSkipStore(context)
+
+    @Provides
+    @Singleton
+    fun provideHolidayDateSource(): HolidayDateSource = AndroidHolidayDateSource()
 }
