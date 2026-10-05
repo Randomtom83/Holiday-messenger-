@@ -33,6 +33,7 @@ interface ContactDao {
     @Delete
     suspend fun deleteContact(contact: Contact)
 
-    @Query("SELECT * FROM contacts WHERE birthday = :monthDay OR birthdayOverride = :monthDay")
+    // Same rule as Contact.effectiveBirthday: an override replaces the device birthday, it does not add a second date.
+    @Query("SELECT * FROM contacts WHERE COALESCE(NULLIF(birthdayOverride, ''), birthday) = :monthDay")
     suspend fun getContactsByBirthday(monthDay: String): List<Contact>
 }
