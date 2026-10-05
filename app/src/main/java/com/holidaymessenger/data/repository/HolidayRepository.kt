@@ -5,6 +5,7 @@ import com.holidaymessenger.data.db.dao.MessageTemplateDao
 import com.holidaymessenger.data.db.entity.*
 import com.holidaymessenger.util.HolidayCalendar
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -115,16 +116,16 @@ class HolidayRepository @Inject constructor(
     }
 
     /**
-     * Seeds the database with default holidays and templates if empty.
+     * Tops up the database with any default holidays and templates that are missing.
+     * Never deletes anything: deleting templates cascades to scheduled messages
+     * (birthday and recurring rules), and default holiday ids must stay stable.
      */
     suspend fun seedDefaultHolidays() {
-        val count = holidayDao.getHolidayCount()
-        // If we have fewer than 36, we're missing the expanded holiday set
-        if (count >= 36) return
-
-        // Clear and re-seed to keep IDs consistent with templates
-        holidayDao.deleteAllHolidays()
-        templateDao.deleteAllTemplates()
+        val existingHolidayIds = holidayDao.getAllHolidaysList().map { it.id }.toSet()
+        val holidayIdsWithTemplate = templateDao.getAllTemplates().first()
+            .mapNotNull { it.holidayId }
+            .toSet()
+        val hasBirthdayTemplate = templateDao.getFirstTemplateByCategory(Category.BIRTHDAY) != null
 
         val holidays = listOf(
             Holiday(id = 1, name = "New Year's Day", monthDay = "01-01"),
@@ -164,7 +165,8 @@ class HolidayRepository @Inject constructor(
             Holiday(id = 29, name = "Christmas", monthDay = "12-25"),
             Holiday(id = 30, name = "Kwanzaa", monthDay = "12-26")
         )
-        holidayDao.insertHolidays(holidays)
+        val missingHolidays = holidays.filter { it.id !in existingHolidayIds }
+        if (missingHolidays.isNotEmpty()) holidayDao.insertHolidays(missingHolidays)
 
         val defaultTemplates = listOf(
             MessageTemplate(category = Category.HOLIDAY, text = "Happy New Year, {name}! Wishing you an amazing year ahead!", holidayId = 1),
@@ -205,6 +207,14 @@ class HolidayRepository @Inject constructor(
             MessageTemplate(category = Category.HOLIDAY, text = "Happy Kwanzaa, {name}! Wishing you a beautiful celebration of unity, creativity, and purpose. 🕯️", holidayId = 30),
             MessageTemplate(category = Category.BIRTHDAY, text = "Happy Birthday, {name}! Hope you have an amazing day! 🎂")
         )
-        templateDao.insertTemplates(defaultTemplates)
+        val missingTemplates = defaultTemplates.filter { template ->
+            val holidayId = template.holidayId
+            if (holidayId != null) {
+                holidayId !in holidayIdsWithTemplate
+            } else {
+                template.category == Category.BIRTHDAY && !hasBirthdayTemplate
+            }
+        }
+        if (missingTemplates.isNotEmpty()) templateDao.insertTemplates(missingTemplates)
     }
 }
